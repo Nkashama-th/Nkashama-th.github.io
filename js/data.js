@@ -1,14 +1,10 @@
 // Skills — just add or remove items
 const skills = [
   "HTML5",
-  "CSS3",
-  "JavaScript",
   "Python",
-  "Node.js",
-  "React",
+  "PL/SQL",
   "SQL",
-  "Git",
-  "UI/UX Design"
+  "Git"
 ];
 
 // Portfolio Projects

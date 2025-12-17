@@ -23,7 +23,7 @@ const projects = [
     link: "#",
     github: "#"
   },
-    {
+  {
     title: "Project Three",
     description: "Data visualization dashboard using Python.",
     image: "img/project2.jpg",

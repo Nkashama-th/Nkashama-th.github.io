@@ -1,4 +1,4 @@
-Hello! I'm Your Name, a developer passionate about creating clean and functional web experiences.
+Hello! I'm Nkashama(anonymous name), a developer passionate about database systems and board gaming, board game functional.
 
-I enjoy working with modern JavaScript frameworks, backend APIs, and UI/UX design.
-When I'm not coding, I love reading tech blogs and exploring creative projects.
+I enjoy working with SQL, python, backend APIs, and currently obsessed with kali linux.
+When I'm not coding, I love reading fictions and exploring creative projects.

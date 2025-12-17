@@ -1,138 +1,100 @@
-// Minimal NFT UI - Barcode Reader (UI only, dedup-ready)
+import {
+  BrowserMultiFormatReader
+} from "https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/+esm";
 
-// Load ZXing (1D + 2D)
-const script = document.createElement("script");
-script.src = "https://unpkg.com/@zxing/library@latest";
-document.head.appendChild(script);
+const reader = new BrowserMultiFormatReader();
 
 const fileInput = document.getElementById("fileInput");
 const chooseBtn = document.getElementById("chooseBtn");
-const dropzone = document.getElementById("dropzone");
 const preview = document.getElementById("preview");
 const output = document.getElementById("metadataOutput");
+const mintBtn = document.getElementById("mintPreviewBtn");
 const clearBtn = document.getElementById("clearBtn");
-const mintPreviewBtn = document.getElementById("mintPreviewBtn");
 
-let collectedData = [];
-
-// ---------- UI EVENTS ----------
+let barcodeList = [];
 
 chooseBtn.onclick = () => fileInput.click();
+clearBtn.onclick = reset;
 
-dropzone.ondragover = e => {
-  e.preventDefault();
-  dropzone.style.background = "#f2f2f2";
-};
-
-dropzone.ondragleave = () => {
-  dropzone.style.background = "";
-};
-
-dropzone.ondrop = e => {
-  e.preventDefault();
-  dropzone.style.background = "";
-  handleFiles(e.dataTransfer.files);
-};
-
-fileInput.onchange = e => handleFiles(e.target.files);
-
-// ---------- CORE LOGIC ----------
-
-async function handleFiles(files) {
-  preview.innerHTML = "";
-  collectedData = [];
-
-  for (const file of files) {
-    if (!file.type.startsWith("image/")) continue;
-
-    const imgURL = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = imgURL;
-    await img.decode();
-
-    const result = await decodeBarcode(img);
-    preview.appendChild(createThumb(imgURL, result));
-
-    if (!result) continue;
-
-    // Trim barcode text
-    const barcodeText = result.text.trim();
-
-    // Validate duplicate (barcode_data)
-    if (isDuplicateBarcode(barcodeText)) continue;
-
-    collectedData.push({
-      sequence: collectedData.length + 1,
-      barcode_data: barcodeText,
-      barcode_type: result.format
-    });
-  }
-}
-
-// ---------- BARCODE DECODER ----------
-
-async function decodeBarcode(img) {
-  if (!window.ZXing) return null;
-
-  const reader = new ZXing.BrowserMultiFormatReader();
-  try {
-    const result = await reader.decodeFromImageElement(img);
-    return {
-      text: result.text,
-      format: result.barcodeFormat
-    };
-  } catch {
-    return null;
-  }
-}
-
-// ---------- VALIDATION ----------
-
-function isDuplicateBarcode(barcodeText) {
-  return collectedData.some(
-    item => item.barcode_data === barcodeText
-  );
-}
-
-// ---------- UI HELPERS ----------
-
-function createThumb(src, barcode) {
-  const div = document.createElement("div");
-  div.className = "thumb";
-
-  const img = document.createElement("img");
-  img.src = src;
-
-  const info = document.createElement("div");
-  info.className = "info";
-
-  info.innerHTML = barcode
-    ? `<span>${barcode.format}</span><span>✔</span>`
-    : `<span>No barcode</span><span>✖</span>`;
-
-  div.append(img, info);
-  return div;
-}
-
-// ---------- METADATA PREVIEW ----------
-
-mintPreviewBtn.onclick = () => {
-  output.hidden = false;
-  output.textContent = JSON.stringify(
-    {
-      asset_name: document.getElementById("assetName").value,
-      description: document.getElementById("assetDesc").value,
-      barcodes: collectedData
-    },
-    null,
-    2
-  );
-};
-
-// ---------- RESET ----------
-
-clearBtn.onclick = () => {
+fileInput.onchange = async () => {
+  barcodeList = [];
   preview.innerHTML = "";
   output.hidden = true;
-  collectedData = [];
+
+  for (const file of fileInput.files) {
+    await processImage(file);
+  }
 };
+
+async function processImage(file) {
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await img.decode();
+
+  const trimmedCanvas = trimWhitespace(img);
+  const previewImg = document.createElement("img");
+  previewImg.src = trimmedCanvas.toDataURL();
+  preview.appendChild(previewImg);
+
+  try {
+    const result = await reader.decodeFromCanvas(trimmedCanvas);
+    const type = result.getBarcodeFormat();
+    const data = result.getText();
+    const hash = await sha3(data);
+
+    barcodeList.push([type, data, hash]);
+  } catch {
+    barcodeList.push(["UNKNOWN", null, null]);
+  }
+}
+
+function trimWhitespace(img) {
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  c.width = img.width;
+  c.height = img.height;
+  ctx.drawImage(img, 0, 0);
+
+  const pixels = ctx.getImageData(0, 0, c.width, c.height);
+  let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
+
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    const alpha = pixels.data[i + 3];
+    if (alpha > 0) {
+      const x = (i / 4) % c.width;
+      const y = Math.floor(i / 4 / c.width);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  const trimmed = document.createElement("canvas");
+  trimmed.width = maxX - minX;
+  trimmed.height = maxY - minY;
+  trimmed
+    .getContext("2d")
+    .drawImage(c, minX, minY, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
+
+  return trimmed;
+}
+
+async function sha3(text) {
+  const enc = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-3-512", enc);
+  return [...new Uint8Array(hash)]
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+mintBtn.onclick = () => {
+  output.hidden = false;
+  output.textContent = JSON.stringify(barcodeList, null, 2);
+};
+
+function reset() {
+  barcodeList = [];
+  preview.innerHTML = "";
+  output.hidden = true;
+}

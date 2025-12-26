@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        // Get the current URL
+        var currentURL = window.location.href;
+        // Convert the URL to lowercase
+        var lowerCaseURL = currentURL.toLowerCase();
+
+        // If the URLs are different, redirect to the lowercase version
+        if (currentURL !== lowerCaseURL) {
+            // Use replace() to avoid an infinite redirect loop if the script fails
+            location.replace(lowerCaseURL);
+        } else {
+            // Optional: Display a friendly 404 message if it's genuinely not found
+            // after the lowercase check
+        }
+    </script>
+</head>
+<body>
+    <h1>404 - Page Not Found</h1>
+    <p>If you are not redirected automatically, the requested page could not be found.</p>
+    <a href="/">Go to the homepage</a>
+</body>
+</html>
